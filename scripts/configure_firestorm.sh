@@ -358,12 +358,16 @@ then
     echo "Setting environment variables for Visual Studio..."
     if [ "$OSTYPE" = "cygwin" ] ; then
         export AUTOBUILD_EXEC="$(cygpath -u $AUTOBUILD)"
+        # load autobuild provided shell functions and variables
+        eval "$("$AUTOBUILD_EXEC" source_environment)"
+        # vsvars is needed for determing path to VS runtime redist files in Copy3rdPartyLibs.cmake
+        load_vsvars
+    else
+        # load autobuild provided shell functions and variables
+        eval "$("$AUTOBUILD" source_environment)"
+        # vsvars is needed for determing path to VS runtime redist files in Copy3rdPartyLibs.cmake
+        load_vsvars
     fi
-
-    # load autobuild provided shell functions and variables
-    eval "$("$AUTOBUILD_EXEC" source_environment)"
-    # vsvars is needed for determing path to VS runtime redist files in Copy3rdPartyLibs.cmake
-    load_vsvars
 fi
 
 if [ -z "$AUTOBUILD_VARIABLES_FILE" ]
@@ -537,6 +541,8 @@ if [ $WANTS_CONFIG -eq $TRUE ] ; then
         mkdir -p "logs"
     fi
 
+    CMAKE_ARCH = ""
+
     if [ $TARGET_PLATFORM == "darwin" ] ; then
         TARGET="Xcode"
     elif [ \( $TARGET_PLATFORM == "linux" \) ] ; then
@@ -553,6 +559,11 @@ if [ $WANTS_CONFIG -eq $TRUE ] ; then
         fi
     elif [ \( $TARGET_PLATFORM == "windows" \) ] ; then
         TARGET="${AUTOBUILD_WIN_CMAKE_GEN}"
+        if [ $AUTOBUILD_ADDRSIZE == 32 ]
+        then
+            CMAKE_ARCH="-A Win32"
+        fi
+
         UNATTENDED="-DUNATTENDED=ON"
     fi
 
@@ -576,7 +587,7 @@ if [ $WANTS_CONFIG -eq $TRUE ] ; then
         fi
     fi
 
-    cmake -G "$TARGET" ../indra $CHANNEL ${GITHASH} $FMODSTUDIO $OPENAL $KDU $OPENSIM $SINGLEGRID $AVX_OPTIMIZATION $AVX2_OPTIMIZATION $TRACY_PROFILER $TESTBUILD $PACKAGE \
+    cmake -G "$TARGET" $CMAKE_ARCH ../indra $CHANNEL ${GITHASH} $FMODSTUDIO $OPENAL $KDU $OPENSIM $SINGLEGRID $AVX_OPTIMIZATION $AVX2_OPTIMIZATION $TRACY_PROFILER $TESTBUILD $PACKAGE \
           $UNATTENDED -DLL_TESTS:BOOL=OFF -DADDRESS_SIZE:STRING=$AUTOBUILD_ADDRSIZE -DCMAKE_BUILD_TYPE:STRING=$BTYPE $CACHE_OPT \
           $CRASH_REPORTING -DVIEWER_SYMBOL_FILE:STRING="${VIEWER_SYMBOL_FILE:-}" $LL_ARGS_PASSTHRU ${VSCODE_FLAGS:-} | tee $LOG
 
@@ -598,6 +609,7 @@ if [ $WANTS_BUILD -eq $TRUE ] ; then
     elif [ $TARGET_PLATFORM == "linux" ] ; then
         if [ $JOBS == "0" ] ; then
             JOBS=`cat /proc/cpuinfo | grep processor | wc -l`
+            echo $JOBS
         fi
         if [ $WANTS_NINJA -eq $TRUE ] ; then
             ninja -j $JOBS | tee -a $LOG
@@ -605,9 +617,10 @@ if [ $WANTS_BUILD -eq $TRUE ] ; then
             make -j $JOBS | tee -a $LOG
         fi
     elif [ $TARGET_PLATFORM == "windows" ] ; then
-        msbuild.exe Firestorm.sln /p:Configuration=${BTYPE} /flp:LogFile="logs\\FirestormBuild_win-${AUTOBUILD_ADDRSIZE}.log" \
-                    /flp1:"errorsonly;LogFile=logs\\FirestormBuild_win-${AUTOBUILD_ADDRSIZE}.err" /p:Platform=${AUTOBUILD_WIN_VSPLATFORM} /t:Build /p:useenv=true \
-                    /verbosity:normal /toolsversion:15.0 /p:"VCBuildAdditionalOptions= /incremental"
+        msbuild.exe Firestorm.sln //p:Configuration=${BTYPE} //flp:LogFile="logs\\FirestormBuild_win-${AUTOBUILD_ADDRSIZE}.log" \
+                    //flp1:"errorsonly;LogFile=logs\\FirestormBuild_win-${AUTOBUILD_ADDRSIZE}.err" \
+                    //p:Platform=${AUTOBUILD_WIN_VSPLATFORM} //t:Build //p:useenv=true \
+                    //verbosity:normal 
     fi
 fi
 
