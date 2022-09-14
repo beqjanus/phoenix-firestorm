@@ -68,7 +68,7 @@ class LLViewerFetchedTexture;
 * Panel for displaying Avatar's second life related info.
 */
 class LLPanelProfileSecondLife
-	: public LLPanelProfileTab
+	: public LLPanelProfilePropertiesProcessorTab
 	, public LLFriendObserver
 	, public LLVoiceClientStatusObserver
 {
@@ -96,6 +96,10 @@ public:
 	/**
 	 * Sends update data request to server.
 	 */
+    #ifdef OPENSIM
+    void apply(LLAvatarData* data);
+    void processProperties(void* data, EAvatarProcessorType type);
+    #endif
 	void updateData() override;
     void refreshName();
 
@@ -268,6 +272,9 @@ public:
 	 * Loads web profile.
 	 */
 	void updateData() override;
+    #ifdef OPENSIM
+    void apply(LLAvatarData* data);
+    #endif
 
 	void handleMediaEvent(LLPluginClassMedia* self, EMediaEvent event) override;
 
@@ -293,7 +300,7 @@ private:
 * Panel for displaying Avatar's first life related info.
 */
 class LLPanelProfileFirstLife
-	: public LLPanelProfileTab
+	: public LLPanelProfilePropertiesProcessorTab
 {
 public:
 	LLPanelProfileFirstLife();
@@ -304,7 +311,10 @@ public:
 	BOOL postBuild() override;
 
     void processProperties(const LLAvatarData* avatar_data);
-
+#ifdef OPENSIM
+    void processProperties(void * data, EAvatarProcessorType type);
+    void apply(LLAvatarData* data);
+#endif
 	void resetData() override;
 
     void setProfileImageUploading(bool loading);
@@ -353,7 +363,7 @@ private:
  * Panel for displaying Avatar's notes and modifying friend's rights.
  */
 class LLPanelProfileNotes
-	: public LLPanelProfileTab
+	: public LLPanelProfilePropertiesProcessorTab
 {
 public:
 	LLPanelProfileNotes();
@@ -366,7 +376,9 @@ public:
 	BOOL postBuild() override;
 
     void processProperties(LLAvatarNotes* avatar_notes);
-
+#ifdef OPENSIM
+    void processProperties(void * data, EAvatarProcessorType type);
+#endif
 	void resetData() override;
 
 	void updateData() override;

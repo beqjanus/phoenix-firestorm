@@ -875,7 +875,7 @@ void LLFloaterProfilePermissions::onCancel()
 // LLPanelProfileSecondLife
 
 LLPanelProfileSecondLife::LLPanelProfileSecondLife()
-    : LLPanelProfileTab()
+    : LLPanelProfilePropertiesProcessorTab()
     , mAvatarNameCacheConnection()
     , mHasUnsavedDescriptionChanges(false)
     , mWaitingForImageUpload(false)
@@ -980,8 +980,7 @@ BOOL LLPanelProfileSecondLife::postBuild()
 
 void LLPanelProfileSecondLife::onOpen(const LLSD& key)
 {
-    LLPanelProfileTab::onOpen(key);
-
+    LLPanelProfilePropertiesProcessorTab::onOpen(key);
     resetData();
 
     LLUUID avatar_id = getAvatarId();
@@ -1069,6 +1068,16 @@ void LLPanelProfileSecondLife::updateData()
         }
         else
         {
+            // <FS:Beq> restore UDP profiles for opensim that does not support the cap
+            if (LLGridManager::instance().isInOpenSim())
+            {
+            	if (!(getSelfProfile() /* TODO(Beq):No longer neeed? && !getEmbedded()*/))
+	            {
+		            LLAvatarPropertiesProcessor::getInstance()->sendAvatarGroupsRequest(avatar_id);
+	            }            
+            }
+            else
+            // </FS:Beq>
             LL_WARNS() << "Failed to update profile data, no cap found" << LL_ENDL;
         }
     }
@@ -1081,6 +1090,41 @@ void LLPanelProfileSecondLife::refreshName()
         mAvatarNameCacheConnection = LLAvatarNameCache::get(getAvatarId(), boost::bind(&LLPanelProfileSecondLife::onAvatarNameCache, this, _1, _2));
     }
 }
+
+#ifdef OPENSIM
+void LLPanelProfileSecondLife::apply(LLAvatarData* data)
+{
+	if (getIsLoaded() && getSelfProfile())
+	{
+		data->image_id = mImageId;
+		data->about_text = mDescriptionEdit->getValue().asString();
+		data->allow_publish = mShowInSearchCheckbox->getValue();
+
+		LLAvatarPropertiesProcessor::getInstance()->sendAvatarPropertiesUpdate(data);
+	}
+}
+
+void LLPanelProfileSecondLife::processProperties(void* data, EAvatarProcessorType type)
+{
+	if (APT_PROPERTIES == type)
+	{
+		const LLAvatarData* avatar_data = static_cast<const LLAvatarData*>(data);
+		if(avatar_data && getAvatarId() == avatar_data->avatar_id)
+		{
+			processProfileProperties(avatar_data);
+			setLoaded();
+		}
+	}
+	else if (APT_GROUPS == type)
+	{
+		LLAvatarGroups* avatar_groups = static_cast<LLAvatarGroups*>(data);
+		if(avatar_groups && getAvatarId() == avatar_groups->avatar_id)
+		{
+			processGroupProperties(avatar_groups);
+		}
+	}
+}
+#endif
 
 void LLPanelProfileSecondLife::resetData()
 {
@@ -1569,7 +1613,7 @@ void LLPanelProfileSecondLife::setAvatarId(const LLUUID& avatar_id)
             LLAvatarTracker::instance().removeParticularFriendObserver(getAvatarId(), this);
         }
 
-        LLPanelProfileTab::setAvatarId(avatar_id);
+        LLPanelProfilePropertiesProcessorTab::setAvatarId(avatar_id);
 
         if (LLAvatarActions::isFriend(getAvatarId()))
         {
@@ -2081,6 +2125,21 @@ void LLPanelProfileSecondLife::onSaveDescriptionChanges()
         LLCoros::instance().launch("putAgentUserInfoCoro",
             boost::bind(put_avatar_properties_coro, cap_url, getAvatarId(), LLSD().with("sl_about_text", mDescriptionText)));
     }
+#ifdef OPENSIM
+    else if(LLGridManager::getInstance()->isInOpenSim())
+    {
+        if (getIsLoaded() && getSelfProfile())
+        {
+            LLAvatarData data = LLAvatarData();
+            data.avatar_id = gAgentID;
+            data.image_id = mImageId;
+            data.about_text = mDescriptionEdit->getValue().asString();
+            data.allow_publish = mShowInSearchCheckbox->getValue();
+
+            LLAvatarPropertiesProcessor::getInstance()->sendAvatarPropertiesUpdate(&data);
+        }        
+    }
+#endif
     else
     {
         LL_WARNS("AvatarProperties") << "Failed to update profile data, no cap found" << LL_ENDL;
@@ -2357,6 +2416,13 @@ void LLPanelProfileWeb::updateData()
     }
 }
 
+#ifdef OPENSIM
+void LLPanelProfileWeb::apply(LLAvatarData* data)
+{
+	data->profile_url = mURLHome;
+}
+#endif
+
 void LLPanelProfileWeb::onAvatarNameCache(const LLUUID& agent_id, const LLAvatarName& av_name)
 {
     mAvatarNameCacheConnection.disconnect();
@@ -2446,7 +2512,7 @@ void LLPanelProfileWeb::handleMediaEvent(LLPluginClassMedia* self, EMediaEvent e
 //////////////////////////////////////////////////////////////////////////
 
 LLPanelProfileFirstLife::LLPanelProfileFirstLife()
- : LLPanelProfileTab()
+ : LLPanelProfilePropertiesProcessorTab()
  , mHasUnsavedChanges(false)
 {
 }
@@ -2479,8 +2545,7 @@ BOOL LLPanelProfileFirstLife::postBuild()
 
 void LLPanelProfileFirstLife::onOpen(const LLSD& key)
 {
-    LLPanelProfileTab::onOpen(key);
-
+    LLPanelProfilePropertiesProcessorTab::onOpen(key);
     if (!getSelfProfile())
     {
         // Otherwise as the only focusable element it will be selected
@@ -2748,6 +2813,20 @@ void LLPanelProfileFirstLife::onSaveDescriptionChanges()
         LLCoros::instance().launch("putAgentUserInfoCoro",
             boost::bind(put_avatar_properties_coro, cap_url, getAvatarId(), LLSD().with("fl_about_text", mCurrentDescription)));
     }
+#ifdef OPENSIM
+    else if(LLGridManager::getInstance()->isInOpenSim())
+    {
+        if (getIsLoaded() && getSelfProfile())
+        {
+            LLAvatarData data = LLAvatarData();
+            data.avatar_id = gAgentID;
+            data.fl_image_id = mImageId;
+            data.fl_about_text = mDescriptionEdit->getValue().asString();
+
+            LLAvatarPropertiesProcessor::getInstance()->sendAvatarPropertiesUpdate(&data);
+        }        
+    }
+#endif    
     else
     {
         LL_WARNS("AvatarProperties") << "Failed to update profile data, no cap found" << LL_ENDL;
@@ -2763,6 +2842,19 @@ void LLPanelProfileFirstLife::onDiscardDescriptionChanges()
     setDescriptionText(mCurrentDescription);
 }
 
+#ifdef OPENSIM
+void LLPanelProfileFirstLife::processProperties(void * data, EAvatarProcessorType type)
+{
+    if (APT_PROPERTIES == type)
+	{
+        const LLAvatarData* avatar_data = static_cast<const LLAvatarData*>(data);
+		if (avatar_data && getAvatarId() == avatar_data->avatar_id)
+		{
+            processProperties(avatar_data);
+        }
+    }
+}
+#endif
 void LLPanelProfileFirstLife::processProperties(const LLAvatarData* avatar_data)
 {
     setDescriptionText(avatar_data->fl_about_text);
@@ -2780,6 +2872,14 @@ void LLPanelProfileFirstLife::processProperties(const LLAvatarData* avatar_data)
 
     setLoaded();
 }
+
+#ifdef OPENSIM
+void LLPanelProfileFirstLife::apply(LLAvatarData* data)
+{
+	data->fl_image_id = mImageId;
+	data->fl_about_text = mDescriptionEdit->getValue().asString();
+}
+#endif
 
 void LLPanelProfileFirstLife::resetData()
 {
@@ -2811,7 +2911,7 @@ void LLPanelProfileFirstLife::setLoaded()
 //////////////////////////////////////////////////////////////////////////
 
 LLPanelProfileNotes::LLPanelProfileNotes()
-: LLPanelProfileTab()
+: LLPanelProfilePropertiesProcessorTab()
  , mHasUnsavedChanges(false)
 {
 
@@ -2833,6 +2933,10 @@ void LLPanelProfileNotes::updateData()
         {
             LLCoros::instance().launch("requestAgentUserInfoCoro",
                 boost::bind(request_avatar_properties_coro, cap_url, avatar_id));
+        }
+        else
+        {
+		    LLAvatarPropertiesProcessor::getInstance()->sendAvatarNotesRequest(avatar_id);            
         }
     }
 }
@@ -2912,7 +3016,19 @@ void LLPanelProfileNotes::processProperties(LLAvatarNotes* avatar_notes)
     mNotesEditor->setEnabled(TRUE);
     setLoaded();
 }
-
+#ifdef OPENSIM
+void LLPanelProfileNotes::processProperties(void * data, EAvatarProcessorType type)
+{
+    if (APT_NOTES == type)
+	{
+		LLAvatarNotes* avatar_notes = static_cast<LLAvatarNotes*>(data);
+		if (avatar_notes && getAvatarId() == avatar_notes->target_id)
+        {
+            processProperties(avatar_notes);
+        }
+    }
+}
+#endif
 void LLPanelProfileNotes::resetData()
 {
     resetLoading();
@@ -2923,7 +3039,7 @@ void LLPanelProfileNotes::setAvatarId(const LLUUID& avatar_id)
 {
     if (avatar_id.notNull())
     {
-        LLPanelProfileTab::setAvatarId(avatar_id);
+        LLPanelProfilePropertiesProcessorTab::setAvatarId(avatar_id);
     }
 }
 
@@ -2969,14 +3085,20 @@ void LLPanelProfile::onOpen(const LLSD& key)
     mTabContainer       = getChild<LLTabContainer>("panel_profile_tabs");
     mPanelSecondlife    = findChild<LLPanelProfileSecondLife>(PANEL_SECONDLIFE);
     mPanelWeb           = findChild<LLPanelProfileWeb>(PANEL_WEB);
+    LL_INFOS("profiles") << "create picks panel" << LL_ENDL;
     mPanelPicks         = findChild<LLPanelProfilePicks>(PANEL_PICKS);
+    LL_INFOS("profiles") << "created picks panel" << LL_ENDL;
+    LL_INFOS("profiles") << "create classifieds panel" << LL_ENDL;
     mPanelClassifieds   = findChild<LLPanelProfileClassifieds>(PANEL_CLASSIFIEDS);
     mPanelFirstlife     = findChild<LLPanelProfileFirstLife>(PANEL_FIRSTLIFE);
     mPanelNotes         = findChild<LLPanelProfileNotes>(PANEL_NOTES);
 
     mPanelSecondlife->onOpen(avatar_id);
     mPanelWeb->onOpen(avatar_id);
+    LL_INFOS("profiles") << "about to onOpen() picks panel" << LL_ENDL;
     mPanelPicks->onOpen(avatar_id);
+    LL_INFOS("profiles") << "post onOpen picks panel" << LL_ENDL;
+    LL_INFOS("profiles") << "about to onOpen classifieds panel" << LL_ENDL;
     mPanelClassifieds->onOpen(avatar_id);
     mPanelFirstlife->onOpen(avatar_id);
     mPanelNotes->onOpen(avatar_id);
@@ -2998,16 +3120,24 @@ void LLPanelProfile::updateData()
     {
         setIsLoading();
 
-        mPanelSecondlife->setIsLoading();
-        mPanelPicks->setIsLoading();
-        mPanelFirstlife->setIsLoading();
-        mPanelNotes->setIsLoading();
+        // mPanelSecondlife->setIsLoading();
+        // mPanelPicks->setIsLoading();
+        // mPanelFirstlife->setIsLoading();
+        // mPanelNotes->setIsLoading();
+        mPanelSecondlife->updateData();
+        mPanelPicks->updateData();
+        mPanelFirstlife->updateData();
+        mPanelNotes->updateData();
 
         std::string cap_url = gAgent.getRegionCapability(PROFILE_PROPERTIES_CAP);
         if (!cap_url.empty())
         {
             LLCoros::instance().launch("requestAgentUserInfoCoro",
                 boost::bind(request_avatar_properties_coro, cap_url, avatar_id));
+        }
+        else
+        {
+		        LLAvatarPropertiesProcessor::getInstance()->sendAvatarPropertiesRequest(avatar_id);
         }
     }
 }
@@ -3063,8 +3193,25 @@ void LLPanelProfile::commitUnsavedChanges()
     mPanelClassifieds->commitUnsavedChanges();
     mPanelFirstlife->commitUnsavedChanges();
     mPanelNotes->commitUnsavedChanges();
+    // <FS:Beq> restore UDP - this is effectvely the apply() method from the previous incarnation
+#ifdef OPENSIM
+	if ( (gAgent.getRegionCapability(PROFILE_PROPERTIES_CAP).empty()) && getSelfProfile() )
+	{
+		//KC - Avatar data is spread over 3 different panels
+		// collect data from the last 2 and give to the first to save
+		LLAvatarData data = LLAvatarData();
+		data.avatar_id = gAgentID;
+        // these three collate data so need to be called in sequence.
+		mPanelFirstlife->apply(&data);
+		mPanelWeb->apply(&data);
+		mPanelSecondlife->apply(&data);
+        // These three triggered above
+		// mPanelInterests->apply();
+		// mPanelPicks->apply();
+		// mPanelNotes->apply();
+	}
 }
-
+#endif
 void LLPanelProfile::showClassified(const LLUUID& classified_id, bool edit)
 {
     if (classified_id.notNull())

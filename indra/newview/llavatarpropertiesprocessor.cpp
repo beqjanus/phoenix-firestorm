@@ -147,8 +147,18 @@ void LLAvatarPropertiesProcessor::sendRequest(const LLUUID& avatar_id, EAvatarPr
 
 void LLAvatarPropertiesProcessor::sendGenericRequest(const LLUUID& avatar_id, EAvatarProcessorType type, const std::string &method)
 {
-    // indicate we're going to make a request
-    addPendingRequest(avatar_id, type);
+// <FS:Beq> First run at profile behaviour fix for OpenSim
+#ifdef OPENSIM // maintain legacy behaviour for now
+	// Suppress duplicate requests while waiting for a response from the network
+	if (isPendingRequest(avatar_id, type))
+	{
+		// waiting for a response, don't re-request
+		return;
+	}
+#endif //OPENSIM
+// </FS:Beq>
+	// indicate we're going to make a request
+	addPendingRequest(avatar_id, type);
 
     std::vector<std::string> strings;
     strings.push_back(avatar_id.asString());
@@ -178,11 +188,33 @@ void LLAvatarPropertiesProcessor::initAgentProfileCapRequest(const LLUUID& avata
     LLCoros::instance().launch("requestAgentUserInfoCoro",
         boost::bind(requestAvatarPropertiesCoro, cap_url, avatar_id));
 }
-
+// <FS:Beq> maintian legacy behaviour for OpenSim
+#ifdef OPENSIM
 void LLAvatarPropertiesProcessor::sendAvatarPropertiesRequest(const LLUUID& avatar_id)
 {
-    sendRequest(avatar_id, APT_PROPERTIES, "AvatarPropertiesRequest");
+	if(!gAgent.getRegionCapability("AgentProfile").empty())
+	{
+    	sendRequest(avatar_id, APT_PROPERTIES, "AvatarPropertiesRequest");
+	}
+	else{
+		// this is the startup state when send_complete_agent_movement() message is sent.
+		// Before this, the AvatarPropertiesRequest message  
+		// won't work so don't bother trying
+		if (LLStartUp::getStartupState() <= STATE_AGENT_SEND)
+		{
+			return;
+		}
+
+		if (isPendingRequest(avatar_id, APT_PROPERTIES))
+		{
+			// waiting for a response, don't re-request
+			return;
+		}
+		sendAvatarPropertiesRequestMessage(avatar_id);
+	}	
 }
+#endif // OPENSIM
+// </FS:Beq>
 
 void LLAvatarPropertiesProcessor::sendAvatarPicksRequest(const LLUUID& avatar_id)
 {
