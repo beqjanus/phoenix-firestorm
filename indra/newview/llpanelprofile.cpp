@@ -78,6 +78,7 @@
 #include "llviewertexturelist.h"
 #include "llvoiceclient.h"
 #include "llweb.h"
+#include "llviewernetwork.h"
 
 #include "fsdata.h"
 #include "llviewermenu.h"
@@ -1069,6 +1070,7 @@ void LLPanelProfileSecondLife::updateData()
         else
         {
             // <FS:Beq> restore UDP profiles for opensim that does not support the cap
+#ifdef OPENSIM            
             if (LLGridManager::instance().isInOpenSim())
             {
             	if (!(getSelfProfile() /* TODO(Beq):No longer neeed? && !getEmbedded()*/))
@@ -1077,6 +1079,7 @@ void LLPanelProfileSecondLife::updateData()
 	            }            
             }
             else
+#endif
             // </FS:Beq>
             LL_WARNS() << "Failed to update profile data, no cap found" << LL_ENDL;
         }
@@ -1091,7 +1094,6 @@ void LLPanelProfileSecondLife::refreshName()
     }
 }
 
-#ifdef OPENSIM
 void LLPanelProfileSecondLife::apply(LLAvatarData* data)
 {
 	if (getIsLoaded() && getSelfProfile())
@@ -1124,7 +1126,6 @@ void LLPanelProfileSecondLife::processProperties(void* data, EAvatarProcessorTyp
 		}
 	}
 }
-#endif
 
 void LLPanelProfileSecondLife::resetData()
 {
@@ -2842,7 +2843,6 @@ void LLPanelProfileFirstLife::onDiscardDescriptionChanges()
     setDescriptionText(mCurrentDescription);
 }
 
-#ifdef OPENSIM
 void LLPanelProfileFirstLife::processProperties(void * data, EAvatarProcessorType type)
 {
     if (APT_PROPERTIES == type)
@@ -2854,7 +2854,7 @@ void LLPanelProfileFirstLife::processProperties(void * data, EAvatarProcessorTyp
         }
     }
 }
-#endif
+
 void LLPanelProfileFirstLife::processProperties(const LLAvatarData* avatar_data)
 {
     setDescriptionText(avatar_data->fl_about_text);
@@ -3016,7 +3016,6 @@ void LLPanelProfileNotes::processProperties(LLAvatarNotes* avatar_notes)
     mNotesEditor->setEnabled(TRUE);
     setLoaded();
 }
-#ifdef OPENSIM
 void LLPanelProfileNotes::processProperties(void * data, EAvatarProcessorType type)
 {
     if (APT_NOTES == type)
@@ -3028,7 +3027,7 @@ void LLPanelProfileNotes::processProperties(void * data, EAvatarProcessorType ty
         }
     }
 }
-#endif
+
 void LLPanelProfileNotes::resetData()
 {
     resetLoading();
@@ -3210,8 +3209,9 @@ void LLPanelProfile::commitUnsavedChanges()
 		// mPanelPicks->apply();
 		// mPanelNotes->apply();
 	}
-}
 #endif
+    // </FS:Beq>
+}
 void LLPanelProfile::showClassified(const LLUUID& classified_id, bool edit)
 {
     if (classified_id.notNull())

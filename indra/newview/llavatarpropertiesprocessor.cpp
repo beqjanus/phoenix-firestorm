@@ -189,7 +189,6 @@ void LLAvatarPropertiesProcessor::initAgentProfileCapRequest(const LLUUID& avata
         boost::bind(requestAvatarPropertiesCoro, cap_url, avatar_id));
 }
 // <FS:Beq> maintian legacy behaviour for OpenSim
-#ifdef OPENSIM
 void LLAvatarPropertiesProcessor::sendAvatarPropertiesRequest(const LLUUID& avatar_id)
 {
 	if(!gAgent.getRegionCapability("AgentProfile").empty())
@@ -213,7 +212,6 @@ void LLAvatarPropertiesProcessor::sendAvatarPropertiesRequest(const LLUUID& avat
 		sendAvatarPropertiesRequestMessage(avatar_id);
 	}	
 }
-#endif // OPENSIM
 // </FS:Beq>
 
 void LLAvatarPropertiesProcessor::sendAvatarPicksRequest(const LLUUID& avatar_id)

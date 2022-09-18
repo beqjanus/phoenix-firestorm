@@ -96,10 +96,8 @@ public:
 	/**
 	 * Sends update data request to server.
 	 */
-    #ifdef OPENSIM
     void apply(LLAvatarData* data);
-    void processProperties(void* data, EAvatarProcessorType type);
-    #endif
+    void processProperties(void* data, EAvatarProcessorType type) override;
 	void updateData() override;
     void refreshName();
 
@@ -272,9 +270,7 @@ public:
 	 * Loads web profile.
 	 */
 	void updateData() override;
-    #ifdef OPENSIM
     void apply(LLAvatarData* data);
-    #endif
 
 	void handleMediaEvent(LLPluginClassMedia* self, EMediaEvent event) override;
 
@@ -311,10 +307,8 @@ public:
 	BOOL postBuild() override;
 
     void processProperties(const LLAvatarData* avatar_data);
-#ifdef OPENSIM
-    void processProperties(void * data, EAvatarProcessorType type);
+    void processProperties(void * data, EAvatarProcessorType type) override;
     void apply(LLAvatarData* data);
-#endif
 	void resetData() override;
 
     void setProfileImageUploading(bool loading);
@@ -376,9 +370,7 @@ public:
 	BOOL postBuild() override;
 
     void processProperties(LLAvatarNotes* avatar_notes);
-#ifdef OPENSIM
-    void processProperties(void * data, EAvatarProcessorType type);
-#endif
+    void processProperties(void * data, EAvatarProcessorType type) override;
 	void resetData() override;
 
 	void updateData() override;
