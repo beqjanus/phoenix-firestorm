@@ -13,6 +13,7 @@ include(Copy3rdPartyLibs)
 include(ZLIBNG)
 include(URIPARSER)
 include(Tracy)
+include(SIMDe)
 
 
 set(llcommon_SOURCE_FILES
