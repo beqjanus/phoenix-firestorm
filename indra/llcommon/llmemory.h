@@ -70,8 +70,13 @@ LL_COMMON_API void ll_assert_aligned_func(uintptr_t ptr,U32 alignment);
 #else
 #define ll_assert_aligned(ptr,alignment)
 #endif
-
+#ifdef USE_INTEL_SIMD
 #include <xmmintrin.h>
+#else
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include "simde/x86/sse.h"
+#endif
+
 
 template <typename T> T* LL_NEXT_ALIGNED_ADDRESS(T* address) 
 { 
