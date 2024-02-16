@@ -241,6 +241,7 @@ jobs:
                   autobuild installables add ${package} platform=common url="file:///${full_package_path}"
                 else
                   echo "No bundle found for ${package} on ${{ env.fallback_platform }}. Package will not be available for build."
+                fi
               fi
             fi
           done
