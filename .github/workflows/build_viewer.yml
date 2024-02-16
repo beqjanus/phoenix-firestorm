@@ -25,7 +25,7 @@ jobs:
   build_matrix:
     strategy:
       matrix:
-        os: [macos-11,ubuntu-20.04,windows-2022]
+        os: [macos-11,ubuntu-20.04,windows-2022, macos-14]
         grid: [sl,os]
         addrsize: [64]
     runs-on: ${{ matrix.os }}
@@ -215,7 +215,7 @@ jobs:
               echo "$most_recent_file"
             fi
           }
-          packages=("fmodstudio" "llphysicsextensions_tpv" "kdu")
+          packages=("fmodstudio" "llphysicsextensions_tpv" "kdu" "SIMDe")
           for package in "${packages[@]}"; do
             package_file=$(find_most_recent_bundle $package ${{ env.platform }})
             full_package_path="${{ github.workspace }}${path_sep}${package_file}"
@@ -231,8 +231,16 @@ jobs:
                 echo "Installing ${package_file}"
                 autobuild installables remove ${package} 
                 autobuild installables add ${package} platform=${{ env.fallback_platform }} url="file:///${full_package_path}"
-              else
-                echo "No bundle found for ${package} on ${{ env.fallback_platform }}. Package will not be available for build."
+                else
+                echo "No bundle found for ${package} on ${{ env.fallback_platform }}. Testing for common."
+                package_file=$(find_most_recent_bundle $package common)
+                full_package_path="${{ github.workspace }}${path_sep}${package_file}"
+                if [ -n "$package_file" ]; then
+                  echo "Installing ${package_file}"
+                  autobuild installables remove ${package} 
+                  autobuild installables add ${package} platform=common url="file:///${full_package_path}"
+                else
+                  echo "No bundle found for ${package} on ${{ env.fallback_platform }}. Package will not be available for build."
               fi
             fi
           done
