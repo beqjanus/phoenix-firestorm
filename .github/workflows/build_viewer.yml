@@ -143,7 +143,7 @@ jobs:
       - name: Hack the mac compile args
         if: runner.os =='macOS'
         run: |
-          sed -i 's/-Wno-inconsistent-missing-override//g' variables
+          sed -i 's/-Wno-inconsistent-missing-override//g' ${AUTOBUILD_VARIABLES_FILE}
         shell: bash
 
 
