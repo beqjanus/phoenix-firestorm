@@ -140,6 +140,13 @@ jobs:
           repository: FirestormViewer/fs-build-variables
           path: build-variables
 
+      - name: Hack the mac compile args
+        if: runner.os =='macOS'
+        run: |
+          sed -i 's/-Wno-inconsistent-missing-override//g' variables
+        shell: bash
+
+
       - name: Define platform variable(s)
         run: |
           declare -A os_map
