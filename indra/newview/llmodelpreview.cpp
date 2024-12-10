@@ -277,6 +277,7 @@ LLModelPreview::~LLModelPreview()
     if (mModelLoader)
     {
         mModelLoader->shutdown();
+        mModelLoader = nullptr; // <FS:Beq/> FIRE-34893 - mark loader as null when destroyed to prevent crashes later. 
     }
 
     if (mPreviewAvatar)
@@ -4072,7 +4073,7 @@ void LLModelPreview::loadedCallback(
     void* opaque)
 {
     LLModelPreview* pPreview = static_cast< LLModelPreview* >(opaque);
-    if (pPreview && !LLModelPreview::sIgnoreLoadedCallback)
+    if (pPreview && pPreview->mModelLoader && !LLModelPreview::sIgnoreLoadedCallback) // <FS:Beq/> FIRE-34893 bugsplat crashes in callback if model loader is destroyed before callback
     {
         // Load loader's warnings into floater's log tab
         const LLSD out = pPreview->mModelLoader->logOut();
