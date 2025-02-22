@@ -3134,7 +3134,10 @@ void LLViewerLODTexture::processTextureStats()
     // unset it immediately after we consume it
     if (getBoostLevel() == BOOST_SELECTED)
     {
-        setBoostLevel(BOOST_NONE);
+        // <FS:minerjr>
+        //setBoostLevel(BOOST_NONE);
+        restoreBoostLevel();
+        // </FS:minerjr>
     }
 }
 
@@ -3661,18 +3664,7 @@ void LLViewerMediaTexture::setPlaying(bool playing)
         for(std::list< LLFace* >::iterator iter = mMediaFaceList.begin(); iter!= mMediaFaceList.end(); ++iter)
         {
             LLFace* facep = *iter;
-            const LLTextureEntry* te = facep->getTextureEntry();
-            if (te && te->getGLTFMaterial())
-            {
-                // PBR material, switch emissive and basecolor
-                switchTexture(LLRender::EMISSIVE_MAP, *iter);
-                switchTexture(LLRender::BASECOLOR_MAP, *iter);
-            }
-            else
-            {
-                // blinn-phong material, switch diffuse map only
-                switchTexture(LLRender::DIFFUSE_MAP, *iter);
-            }
+            switchTexture(LLRender::DIFFUSE_MAP, facep);
         }
     }
     else //stop playing this media

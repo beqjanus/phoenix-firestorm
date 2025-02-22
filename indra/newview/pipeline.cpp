@@ -476,6 +476,7 @@ void LLPipeline::init()
     stop_glerror();
 
     //create render pass pools
+    getPool(LLDrawPool::POOL_WATEREXCLUSION);
     getPool(LLDrawPool::POOL_ALPHA_PRE_WATER);
     getPool(LLDrawPool::POOL_ALPHA_POST_WATER);
     getPool(LLDrawPool::POOL_SIMPLE);
@@ -735,6 +736,8 @@ void LLPipeline::cleanup()
     // don't delete wl sky pool it was handled above in the for loop
     //delete mWLSkyPool;
     mWLSkyPool = NULL;
+    delete mWaterExclusionPool;
+    mWaterExclusionPool = nullptr;
 
     releaseGLBuffers();
 
@@ -1016,6 +1019,15 @@ bool LLPipeline::allocateScreenBufferInternal(U32 resX, U32 resY)
         {LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("mPostMapBuffer"); // <FS:Beq/> improve Tracy scoping 
         mPostMap.allocate(resX, resY, screenFormat);
         } // <FS:Beq/> improve Tracy scoping 
+        // The water exclusion mask needs its own depth buffer so we can take care of the problem of multiple water planes.
+        // Should we ever make water not just a plane, it also aids with that as well as the water planes will be rendered into the mask.
+        // Why do we do this? Because it saves us some janky logic in the exclusion shader when we generate the mask.
+        // Regardless, this should always only be an R8 texture unless we choose to start having multiple kinds of exclusion that 8 bits can't handle.
+        // - Geenz 2025-02-06
+        bool success = mWaterExclusionMask.allocate(resX, resY, GL_R8, true);
+
+        assert(success);
+
         // used to scale down textures
         // See LLViwerTextureList::updateImagesCreateTextures and LLImageGL::scaleDown
         {LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("DownResBuffer");// <FS:Beq/> create an independent preview screen target
@@ -1296,6 +1308,8 @@ void LLPipeline::releaseGLBuffers()
     mWaterDis.release();
 
     mSceneMap.release();
+
+    mWaterExclusionMask.release();
 
     mPostMap.release();
 
@@ -1807,6 +1821,10 @@ LLDrawPool *LLPipeline::findPool(const U32 type, LLViewerTexture *tex0)
         break;
     case LLDrawPool::POOL_GLTF_PBR_ALPHA_MASK:
         poolp = mPBRAlphaMaskPool;
+        break;
+
+    case LLDrawPool::POOL_WATEREXCLUSION:
+        poolp = mWaterExclusionPool;
         break;
 
     default:
@@ -4241,6 +4259,8 @@ void LLPipeline::renderGeomDeferred(LLCamera& camera, bool do_occlusion)
     }
 }
 
+// Render all of our geometry that's required after our deferred pass.
+// This is gonna be stuff like alpha, water, etc.
 void LLPipeline::renderGeomPostDeferred(LLCamera& camera)
 {
     LL_PROFILE_ZONE_SCOPED_CATEGORY_DRAWPOOL;
@@ -4257,6 +4277,10 @@ void LLPipeline::renderGeomPostDeferred(LLCamera& camera)
 
     bool done_atmospherics = LLPipeline::sRenderingHUDs; //skip atmospherics on huds
     bool done_water_haze = done_atmospherics;
+    bool done_water_exclusion = false;
+
+    // do water exclusion just before water pass.
+    U32 water_exclusion_pass = LLDrawPool::POOL_WATEREXCLUSION;
 
     // do atmospheric haze just before post water alpha
     U32 atmospherics_pass = LLDrawPool::POOL_ALPHA_POST_WATER;
@@ -4294,6 +4318,12 @@ void LLPipeline::renderGeomPostDeferred(LLCamera& camera)
         LLDrawPool *poolp = *iter1;
 
         cur_type = poolp->getType();
+
+        if (cur_type >= water_exclusion_pass && !done_water_exclusion)
+        { // do water exclusion against depth buffer before rendering alpha
+            doWaterExclusionMask();
+            done_water_exclusion = true;
+        }
 
         if (cur_type >= atmospherics_pass && !done_atmospherics)
         { // do atmospherics against depth buffer before rendering alpha
@@ -5416,6 +5446,17 @@ void LLPipeline::addToQuickLookup( LLDrawPool* new_poolp )
         }
         break;
 
+    case LLDrawPool::POOL_WATEREXCLUSION:
+        if (mWaterExclusionPool)
+        {
+            llassert(0);
+            LL_WARNS() << "LLPipeline::addPool(): Ignoring duplicate Water Exclusion Pool" << LL_ENDL;
+        }
+        else
+        {
+            mWaterExclusionPool = new_poolp;
+        }
+        break;
 
     default:
         llassert(0);
@@ -5536,6 +5577,11 @@ void LLPipeline::removeFromQuickLookup( LLDrawPool* poolp )
     case LLDrawPool::POOL_GLTF_PBR_ALPHA_MASK:
         llassert(poolp == mPBRAlphaMaskPool);
         mPBRAlphaMaskPool = NULL;
+        break;
+
+    case LLDrawPool::POOL_WATEREXCLUSION:
+        llassert(poolp == mWaterExclusionPool);
+        mWaterExclusionPool = nullptr;
         break;
 
     default:
@@ -8036,7 +8082,7 @@ bool LLPipeline::renderSnapshotFrame(LLRenderTarget* src, LLRenderTarget* dst)
     {
         float frame_width = w;
         float frame_height = frame_width / snapshot_aspect;
-        // Centre this box in [0..1]Ã—[0..1]
+        // Centre this box in [0..1]×[0..1]
         float y_offset = 0.5f * (h - frame_height);
         left   = 0.f;
         top    = y_offset / h;
@@ -8047,7 +8093,7 @@ bool LLPipeline::renderSnapshotFrame(LLRenderTarget* src, LLRenderTarget* dst)
     {
         float frame_height = h;
         float frame_width = h * snapshot_aspect;
-        // Centre this box in [0..1]Ã—[0..1]
+        // Centre this box in [0..1]×[0..1]
         float x_offset = 0.5f * (w - frame_width);
         left   = x_offset / w;
         top    = 0.f;
@@ -9305,6 +9351,7 @@ void LLPipeline::renderDeferredLighting()
                           LLPipeline::RENDER_TYPE_FULLBRIGHT_ALPHA_MASK,
                           LLPipeline::RENDER_TYPE_TERRAIN,
                           LLPipeline::RENDER_TYPE_WATER,
+                          LLPipeline::RENDER_TYPE_WATEREXCLUSION,
                           END_RENDER_TYPES);
 
         renderGeomPostDeferred(*LLViewerCamera::getInstance());
@@ -9443,6 +9490,8 @@ void LLPipeline::doWaterHaze()
         static LLStaticHashedString above_water_str("above_water");
         haze_shader.uniform1i(above_water_str, sUnderWaterRender ? -1 : 1);
 
+        haze_shader.bindTexture(LLShaderMgr::WATER_EXCLUSIONTEX, &mWaterExclusionMask);
+
         if (LLPipeline::sUnderWaterRender)
         {
             LLGLDepthTest depth(GL_FALSE);
@@ -9471,6 +9520,17 @@ void LLPipeline::doWaterHaze()
 
         gGL.setSceneBlendType(LLRender::BT_ALPHA);
     }
+}
+
+void LLPipeline::doWaterExclusionMask()
+{
+    mWaterExclusionMask.bindTarget();
+    glClearColor(1, 1, 1, 1);
+    mWaterExclusionMask.clear();
+    mWaterExclusionPool->render();
+
+    mWaterExclusionMask.flush();
+    glClearColor(0, 0, 0, 0);
 }
 
 void LLPipeline::setupSpotLight(LLGLSLShader& shader, LLDrawable* drawablep)
