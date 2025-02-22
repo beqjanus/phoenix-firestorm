@@ -161,6 +161,11 @@ class FSJointPose
     /// Resets the beginning properties of the joint this represents.
     /// </summary>
     void recaptureJoint();
+    /// <summary>
+    /// Recalculates the delta reltive to the base for a new rotation.
+    /// </summary>
+    void recaptureJointAsDelta();
+
 
     /// <summary>
     /// Restores the joint represented by this to the scale it had when this motion started.
@@ -207,6 +212,12 @@ class FSJointPose
         LLQuaternion baseRotation;
         LLQuaternion deltaRotation;
         LLQuaternion getTargetRotation() const { return deltaRotation * baseRotation; }
+        void updateRotation(const LLQuaternion& newRotation)
+        { 
+            auto inv_base = baseRotation;
+            inv_base.conjugate();
+            deltaRotation = newRotation * inv_base; 
+        };
 
         void reflectRotation()
         {

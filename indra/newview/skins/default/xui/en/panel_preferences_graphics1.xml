@@ -1011,7 +1011,7 @@
           Antialiasing Quality:
         </text>
         <combo_box
-         control_name="RenderFSAASamples"
+         control_name="RenderFSAAType"
          height="22"
          initial_value="false"
          follows="left|top"
@@ -1058,7 +1058,7 @@
             <combo_box.item
              label="Ultra"
              name="Ultra"
-             value="2" />
+             value="3" />
         </combo_box>
 
         <check_box
