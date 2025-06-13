@@ -620,7 +620,7 @@ void LLImage::setLastError(const std::string& message)
 
 // <FS:ND> Report amount of failed buffer allocations
 U32 LLImageBase::sAllocationErrors;
-
+S64 LLImageBase::sTotalImageDataSize = 0;
 LLImageBase::LLImageBase()
 :   mData(NULL),
     mDataSize(0),
@@ -671,7 +671,11 @@ void LLImageBase::sanityCheck()
 // virtual
 void LLImageBase::deleteData()
 {
+    LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
+    LL_PROFILE_ZONE_NUM(mDataSize);
     ll_aligned_free_16(mData);
+    sTotalImageDataSize -= mDataSize;
+    LL_PROFILE_PLOT_MB("Texture RAM MB", sTotalImageDataSize);
     mDataSize = 0;
     mData = NULL;
 }
@@ -679,6 +683,8 @@ void LLImageBase::deleteData()
 // virtual
 U8* LLImageBase::allocateData(S32 size)
 {
+    LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
+    LL_PROFILE_ZONE_NUM(size);
     //make this function thread-safe.
     static const U32 MAX_BUFFER_SIZE = 4096 * 4096 * 16; //256 MB
     mBadBufferAllocation = false;
@@ -730,13 +736,17 @@ U8* LLImageBase::allocateData(S32 size)
         addAllocationError();
     }
     mDataSize = size;
-
+    sTotalImageDataSize += size;
+    LL_PROFILE_PLOT_MB("Texture RAM MB", sTotalImageDataSize);
     return mData;
 }
 
 // virtual
 U8* LLImageBase::reallocateData(S32 size)
 {
+    LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
+    LL_PROFILE_ZONE_NUM(mDataSize);
+    LL_PROFILE_ZONE_NUM(size);
     U8 *new_datap = (U8*)ll_aligned_malloc_16(size);
     if (!new_datap)
     {
@@ -746,11 +756,14 @@ U8* LLImageBase::reallocateData(S32 size)
     if (mData)
     {
         S32 bytes = llmin(mDataSize, size);
+        sTotalImageDataSize -= size;
         memcpy(new_datap, mData, bytes);    /* Flawfinder: ignore */
         ll_aligned_free_16(mData) ;
     }
     mData = new_datap;
     mDataSize = size;
+    sTotalImageDataSize += size;
+    LL_PROFILE_PLOT_MB("Texture RAM MB", sTotalImageDataSize);
     mBadBufferAllocation = false;
     return mData;
 }
@@ -879,7 +892,6 @@ U8* LLImageRaw::allocateData(S32 size)
 U8* LLImageRaw::reallocateData(S32 size)
 {
     LLImageDataLock lock(this);
-
     U8* res = LLImageBase::reallocateData(size);
     return res;
 }
@@ -1047,6 +1059,7 @@ bool LLImageRaw::checkHasTransparentPixels()
 
 bool LLImageRaw::optimizeAwayAlpha()
 {
+    LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
     LLImageDataLock lock(this);
 
     if (getComponents() == 4)
@@ -1065,7 +1078,11 @@ bool LLImageRaw::optimizeAwayAlpha()
 
         // alpha channel is all 255, make a new copy of data without alpha channel
         U8* new_data = (U8*) ll_aligned_malloc_16(getWidth() * getHeight() * 3);
-
+        if (!new_data)
+        {
+            LL_WARNS() << "Out of memory: could not discard alpha" << LL_ENDL;
+            return false;
+        }
         for (U32 i = 0; i < pixels; ++i)
         {
             U32 di = i * 3;
@@ -2619,6 +2636,8 @@ void LLImageBase::setDataAndSize(U8 *data, S32 size)
     ll_assert_aligned(data, 16);
     mData = data;
     mDataSize = size;
+    sTotalImageDataSize += size;
+    LL_PROFILE_PLOT_MB("Texture RAM MB", sTotalImageDataSize);
 }
 
 //static

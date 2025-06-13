@@ -70,11 +70,13 @@ static U64 sTextureBytes = 0;
 // asserts that no currently tracked alloc exists
 void LLImageGLMemory::alloc_tex_image(U32 width, U32 height, U32 intformat, U32 count)
 {
+    LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
     U32 texUnit = gGL.getCurrentTexUnitIndex();
     llassert(texUnit == 0); // allocations should always be done on tex unit 0
     U32 texName = gGL.getTexUnit(texUnit)->getCurrTexture();
     U64 size = LLImageGL::dataFormatBytes(intformat, width, height);
     size *= count;
+    LL_PROFILE_ZONE_NUM(size);
 
     llassert(size >= 0);
 
@@ -85,6 +87,8 @@ void LLImageGLMemory::alloc_tex_image(U32 width, U32 height, U32 intformat, U32 
 
     sTextureAllocs[texName] = size;
     sTextureBytes += size;
+    LL_PROFILE_PLOT_MB("Texture VRAM MB", sTextureBytes);
+    LL_PROFILE_PLOT("Texture VRAM allocs", static_cast<int64_t>(sTextureAllocs.size()));
 
     sTexMemMutex.unlock();
 }
@@ -92,6 +96,7 @@ void LLImageGLMemory::alloc_tex_image(U32 width, U32 height, U32 intformat, U32 
 // track texture free on given texName
 void LLImageGLMemory::free_tex_image(U32 texName)
 {
+    LL_PROFILE_ZONE_SCOPED_CATEGORY_TEXTURE;
     sTexMemMutex.lock();
     auto iter = sTextureAllocs.find(texName);
     if (iter != sTextureAllocs.end()) // sometimes a texName will be "freed" before allocated (e.g. first call to setManualImage for a given texName)
@@ -102,6 +107,8 @@ void LLImageGLMemory::free_tex_image(U32 texName)
 
         sTextureAllocs.erase(iter);
     }
+    LL_PROFILE_PLOT_MB("Texture VRAM MB", sTextureBytes);
+    LL_PROFILE_PLOT("Texture VRAM allocs", static_cast<int64_t>(sTextureAllocs.size()));
 
     sTexMemMutex.unlock();
 }

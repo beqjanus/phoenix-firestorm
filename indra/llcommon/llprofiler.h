@@ -134,6 +134,7 @@ namespace LLProfiler
         // <FS:Beq> Additional FS Tracy macros
         #define LL_PROFILE_ZONE_COLOR(color)            ZoneNamedC( ___tracy_scoped_zone, color, LLProfiler::active );
         #define LL_PROFILE_PLOT( name, value )          TracyPlot( name, value);
+        #define LL_PROFILE_PLOT_MB( name, value )       TracyPlot( name, static_cast<double>(value) / (1024.0 * 1024.0));
         #define LL_PROFILE_PLOT_CONFIG_SQUARE(name)     TracyPlotConfig(name, tracy::PlotFormatType::Number, true, false, 0);
         #define LL_PROFILE_IS_CONNECTED                 TracyIsConnected
         // </FS:Beq>
@@ -165,6 +166,7 @@ namespace LLProfiler
         // <FS:Beq> Additional FS Tracy macros
         #define LL_PROFILE_ZONE_COLOR(color)
         #define LL_PROFILE_PLOT( name, value )
+        #define LL_PROFILE_PLOT_MB( name, value )
         #define LL_PROFILE_PLOT_CONFIG_SQUARE(name)
         #define LL_PROFILE_IS_CONNECTED
         // </FS:Beq>
@@ -204,6 +206,8 @@ namespace LLProfiler
         // <FS:Beq> Additional FS Tracy macros
         #define LL_PROFILE_ZONE_COLOR(color)            ZoneNamedC( ___tracy_scoped_zone, color, LLProfiler::active );
         #define LL_PROFILE_PLOT( name, value )          TracyPlot( name, value);
+        #define LL_PROFILE_PLOT_MB( name, value )       TracyPlot( name, static_cast<double>(value) / (1024.0 * 1024.0));
+        #define LL_PROFILE_PLOT_MB( name, value )       TracyPlot( name, static_cast<double>(value) / (1024.0 * 1024.0));
         #define LL_PROFILE_PLOT_CONFIG_SQUARE(name)     TracyPlotConfig(name, tracy::PlotFormatType::Number, true, false, 0);
         #define LL_PROFILE_IS_CONNECTED                 TracyIsConnected
         // </FS:Beq>

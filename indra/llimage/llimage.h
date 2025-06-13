@@ -159,6 +159,8 @@ public:
     static F32 calc_download_priority(F32 virtual_size, F32 visible_area, S32 bytes_sent);
 
     static EImageCodec getCodecFromExtension(const std::string& exten);
+    
+    static S64 sTotalImageDataSize;
 
     //static LLTrace::MemStatHandle sMemStat;
 

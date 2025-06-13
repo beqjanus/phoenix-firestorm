@@ -1648,8 +1648,8 @@ void LLVOCache::readGenericExtrasFromCache(U64 handle, const LLUUID& id, LLVOCac
     // <FS:Beq> Material Override Cache caused long delays
 	#ifdef TRACY_ENABLE
 	static char extra_filename[256];
-	strncpy(extra_filename, filename.c_str(), 256);
-	LL_PROFILE_ZONE_TEXT(extra_filename,256);
+	strncpy(extra_filename, filename.c_str(), 255);
+	LL_PROFILE_ZONE_TEXT(extra_filename,255);
 	#endif
     // </FS:Beq>
     llifstream in(filename, std::ios::in | std::ios::binary);
