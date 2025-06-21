@@ -205,12 +205,14 @@ static bool check_priority(LLReflectionMap* a, LLReflectionMap* b)
 // helper class to seed octree with probes
 void LLReflectionMapManager::update()
 {
+    LL_PROFILE_ZONE_SCOPED_CATEGORY_DISPLAY;
+    LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());
     if (!LLPipeline::sReflectionProbesEnabled || gTeleportDisplay || LLStartUp::getStartupState() < STATE_STARTED)
     {
         return;
     }
-
-    LL_PROFILE_ZONE_SCOPED_CATEGORY_DISPLAY;
+{
+    LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("rmmu - update");
     llassert(!gCubeSnapshot); // assert a snapshot is not in progress
     if (LLAppViewer::instance()->logoutRequestSent())
     {
@@ -301,6 +303,10 @@ void LLReflectionMapManager::update()
     camera_pos.load3(LLViewerCamera::instance().getOrigin().mV);
 
     // process kill list
+    {
+        LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("rmmu - kill list");
+        LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());
+
     for (auto& probe : mKillList)
     {
         auto const & iter = std::find(mProbes.begin(), mProbes.end(), probe);
@@ -309,15 +315,21 @@ void LLReflectionMapManager::update()
             deleteProbe((U32)(iter - mProbes.begin()));
         }
     }
-
+        LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());    
+    }
     mKillList.clear();
 
     // process create list
+    {
+        LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("rmmu - create list");
+    LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());
     for (auto& probe : mCreateList)
     {
         mProbes.push_back(probe);
     }
+    LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());
 
+    }
     mCreateList.clear();
 
     if (mProbes.empty())
@@ -521,6 +533,7 @@ void LLReflectionMapManager::update()
         oldestOccluded->mLastUpdateTime = gFrameTimeSeconds;
     }
 }
+}
 
 LLReflectionMap* LLReflectionMapManager::addProbe(LLSpatialGroup* group)
 {
@@ -534,8 +547,11 @@ LLReflectionMap* LLReflectionMapManager::addProbe(LLSpatialGroup* group)
 
     if (mDefaultProbe.isNull())
     {  //safety check to make sure default probe is always first probe added
+        LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("rmmu - create default probe");
+        LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());
         mDefaultProbe = new LLReflectionMap();
         mProbes.push_back(mDefaultProbe);
+        LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());
     }
 
     llassert(mProbes[0] == mDefaultProbe);
@@ -551,7 +567,9 @@ LLReflectionMap* LLReflectionMapManager::addProbe(LLSpatialGroup* group)
     }
     else
     {
+        LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("rmmu - add probe");
         mProbes.push_back(probe);
+        LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());
     }
 
     return probe;
@@ -676,7 +694,9 @@ LLReflectionMap* LLReflectionMapManager::registerViewerObject(LLViewerObject* vo
     }
     else
     {
+        LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("rmmu - add manual probe");
         mProbes.push_back(probe);
+        LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());
     }
 
     return probe;
@@ -720,6 +740,7 @@ void LLReflectionMapManager::deleteProbe(U32 i)
     }
 
     mProbes.erase(mProbes.begin() + i);
+    LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());
 }
 
 
@@ -1057,6 +1078,7 @@ void LLReflectionMapManager::updateNeighbors(LLReflectionMap* probe)
     }
 
     // search for new neighbors
+
     if (probe->isRelevant())
     {
         LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("rmmun - search");
@@ -1328,6 +1350,7 @@ void LLReflectionMapManager::setUniforms()
 
 void renderReflectionProbe(LLReflectionMap* probe, std::map<LLSpatialGroup*, int> groupCount, std::map<LLViewerObject*, int> objCount, std::map<F32*, int> locCount)
 {
+    LL_PROFILE_ZONE_SCOPED_CATEGORY_DISPLAY;
     if (probe->isRelevant())
     {
         F32* po = probe->mOrigin.getF32ptr();
@@ -1540,9 +1563,11 @@ void LLReflectionMapManager::initReflectionMaps()
 
         if (mDefaultProbe.isNull())
         {
+            LL_PROFILE_ZONE_NAMED_CATEGORY_DISPLAY("rmmim - create default probe");
             llassert(mProbes.empty()); // default probe MUST be the first probe created
             mDefaultProbe = new LLReflectionMap();
             mProbes.push_back(mDefaultProbe);
+            LL_PROFILE_PLOT("Num Refl Probes", (S64)mProbes.size());
         }
 
         llassert(mProbes[0] == mDefaultProbe);
@@ -1607,11 +1632,14 @@ void LLReflectionMapManager::cleanup()
 
 void LLReflectionMapManager::doOcclusion()
 {
+    LL_PROFILE_ZONE_SCOPED_CATEGORY_DISPLAY;
+    LL_PROFILE_ZONE_NUM((S64)mProbes.size());
     LLVector4a eye;
     eye.load3(LLViewerCamera::instance().getOrigin().mV);
 
     for (auto& probe : mProbes)
     {
+
         if (probe != nullptr && probe != mDefaultProbe)
         {
             probe->doOcclusion(eye);
