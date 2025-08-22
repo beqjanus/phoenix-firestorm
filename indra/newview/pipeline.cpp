@@ -378,7 +378,7 @@ void validate_framebuffer_object();
 bool addDeferredAttachments(LLRenderTarget& target, bool for_impostor = false)
 {
     U32 orm = GL_RGBA;
-    U32 norm = GL_RGBA16F;
+    U32 norm = GL_RGBA16;
     U32 emissive = GL_RGB16F;
     // <FS:Beq> FIRE-34483 additional fix
     if (target.getNumTextures() > 1)
