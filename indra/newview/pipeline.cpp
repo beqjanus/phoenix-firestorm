@@ -8496,35 +8496,26 @@ void LLPipeline::renderFinalize()
     }
 
     // <FS:Beq> Restore shader post proc for Vignette
-    LLRenderTarget* activeBuffer = finalBuffer;
-    LLRenderTarget* targetBuffer = RenderFSAAType ? &mRT->screen : &mPostMap;
 // [RLVa:KB] - @setsphere
     if (RlvActions::hasBehaviour(RLV_BHVR_SETSPHERE))
     {
-        LLShaderEffectParams params(activeBuffer, targetBuffer, false);
+        LLShaderEffectParams params(sourceBuffer, targetBuffer, false);
         LLVfxManager::instance().runEffect(EVisualEffect::RlvSphere, &params);
         // flip the buffers round
-        activeBuffer = params.m_pDstBuffer;
-        targetBuffer = params.m_pSrcBuffer;
+        std::swap(sourceBuffer, targetBuffer);
     }
 // [/RLVa:KB]
 
-    if (renderVignette(activeBuffer, targetBuffer))
+    if (renderVignette(sourceBuffer, targetBuffer))
     {
-        auto prevActiveBuffer = activeBuffer;
-        activeBuffer = targetBuffer;
-        targetBuffer = prevActiveBuffer;
+        std::swap(sourceBuffer, targetBuffer);
     };
     // </FS:Beq>
     // <FS:Beq> new shader for snapshot frame helper
-    if (renderSnapshotFrame(targetBuffer, activeBuffer))
+    if (renderSnapshotFrame(targetBuffer, sourceBuffer))
     {
-        auto prevActiveBuffer = activeBuffer;
-        activeBuffer = targetBuffer;
-        targetBuffer = prevActiveBuffer;
+        std::swap(sourceBuffer, targetBuffer);
     };
-
-    finalBuffer = activeBuffer;
     // </FS:Beq>
     if (RenderBufferVisualization > -1)
     {
