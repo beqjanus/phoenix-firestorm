@@ -754,9 +754,11 @@ public:
     LLRenderTarget          mLastExposure;
 
     // tonemapped and gamma corrected render ready for post
+    // <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
+    // LLRenderTarget          mPostMap;
     LLRenderTarget          mPostPingMap;
     LLRenderTarget          mPostPongMap;
-
+    // </FS:Beq>
     // FXAA helper target
     LLRenderTarget          mFXAAMap;
     LLRenderTarget          mSMAABlendBuffer;

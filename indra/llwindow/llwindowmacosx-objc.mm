@@ -257,7 +257,21 @@ float getDeviceUnitSize(GLViewRef view)
 {
 	return [(LLOpenGLView*)view convertSizeToBacking:NSMakeSize(1, 1)].width;
 }
-
+// <FS:Beq> Mac HiDPI changes from Rye
+// CGPoint getContentViewBoundsPosition(NSWindowRef window) 
+// {
+// 	return [[(LLNSWindow*)window contentView] bounds].origin;
+// }
+// 
+// CGSize getContentViewBoundsSize(NSWindowRef window)
+// {
+// 	return [[(LLNSWindow*)window contentView] bounds].size;
+// }
+// 
+// CGSize getDeviceContentViewSize(NSWindowRef window, GLViewRef view)
+// {
+//     return [(NSOpenGLView*)view convertRectToBacking:[[(LLNSWindow*)window contentView] bounds]].size;
+// }
 CGRect getContentViewRect(NSWindowRef window)
 {
     return [[(LLNSWindow*)window contentView] bounds];
@@ -267,7 +281,7 @@ CGRect getBackingViewRect(NSWindowRef window, GLViewRef view)
 {
     return [(NSOpenGLView*)view convertRectToBacking:[[(LLNSWindow*)window contentView] bounds]];
 }
-
+// </FS:Beq>
 void getWindowSize(NSWindowRef window, float* size)
 {
 	NSRect frame = [(LLNSWindow*)window frame];
@@ -308,7 +322,12 @@ void makeWindowOrderFront(NSWindowRef window)
 
 void convertScreenToWindow(NSWindowRef window, float *coord)
 {
+	// <FS:Beq> Mac HiDPI changes from Rye
+	// NSRect point;
+	// point.origin.x = coord[0];
+	// point.origin.y = coord[1];
     NSRect point = NSMakeRect(coord[0], coord[1], 0,0);
+	// </FS:Beq>
 	point = [(LLNSWindow*)window convertRectFromScreen:point];
 	coord[0] = point.origin.x;
 	coord[1] = point.origin.y;
@@ -316,18 +335,33 @@ void convertScreenToWindow(NSWindowRef window, float *coord)
 
 void convertRectToScreen(NSWindowRef window, float *coord)
 {
-    NSRect rect = NSMakeRect(coord[0], coord[1], coord[2], coord[3]);;
+	// <FS:Beq> Mac HiDPI changes from Rye
+	// NSRect point;
+	// point.origin.x = coord[0];
+	// point.origin.y = coord[1];
+	// point.size.width = coord[2];
+	// point.size.height = coord[3];
+    NSRect rect = NSMakeRect(coord[0], coord[1], coord[2], coord[3]);
+	// </FS:Beq>
     rect = [(LLNSWindow*)window convertRectToScreen:rect];
 
 	coord[0] = rect.origin.x;
 	coord[1] = rect.origin.y;
 	coord[2] = rect.size.width;
 	coord[3] = rect.size.height;
+	// </FS:Beq>
 }
 
 void convertRectFromScreen(NSWindowRef window, float *coord)
 {
+	// <FS:Beq> Mac HiDPI changes from Rye
+	// NSRect point;
+	// point.origin.x = coord[0];
+	// point.origin.y = coord[1];
+	// point.size.width = coord[2];
+	// point.size.height = coord[3];
 	NSRect point = NSMakeRect(coord[0], coord[1], coord[2], coord[3]);
+	// </FS:Beq>
 	point = [(LLNSWindow*)window convertRectFromScreen:point];
 	
 	coord[0] = point.origin.x;
@@ -335,14 +369,32 @@ void convertRectFromScreen(NSWindowRef window, float *coord)
 	coord[2] = point.size.width;
 	coord[3] = point.size.height;
 }
+// <FS:Beq> Mac HiDPI changes from Rye
+// void convertScreenToView(NSWindowRef window, float *coord)
+// {
+// 	NSRect point;
+// 	point.origin.x = coord[0];
+// 	point.origin.y = coord[1];
+// 	point.origin = [(LLNSWindow*)window convertScreenToBase:point.origin];
+// 	point.origin = [[(LLNSWindow*)window contentView] convertPoint:point.origin fromView:nil];
+// }
+// </FS:Beq>
 
 void convertWindowToScreen(NSWindowRef window, float *coord)
 {
+	// <FS:Beq> Mac HiDPI changes from Rye
+	// NSPoint point;
+	// point.x = coord[0];
+	// point.y = coord[1];
+	// point = [(LLNSWindow*)window convertToScreenFromLocalPoint:point relativeToView:[(LLNSWindow*)window contentView]];
+	// coord[0] = point.x;
+	// coord[1] = point.y;
     NSRect rect = NSMakeRect(coord[0], coord[1], 0, 0);
     rect = [(LLNSWindow*)window convertRectToScreen:rect];
 
-      coord[0] = rect.origin.x;
+    coord[0] = rect.origin.x;
     coord[1] = [[NSScreen screens][0] frame].size.height - rect.origin.y;
+	// </FS:Beq>
 }
 
 void closeWindow(NSWindowRef window)

@@ -243,8 +243,16 @@ void LLUI::setPopupFuncs(const add_popup_t& add_popup, const remove_popup_t& rem
 
 void LLUI::setMousePositionScreen(S32 x, S32 y)
 {
+// <FS:Beq> Mac HiDPI changes from Rye
+// #if defined(LL_DARWIN)
+//     S32 screen_x = ll_round(((F32)x * getScaleFactor().mV[VX]) / LLView::getWindow()->getSystemUISize());
+//     S32 screen_y = ll_round(((F32)y * getScaleFactor().mV[VY]) / LLView::getWindow()->getSystemUISize());
+// #else
+// </FS:Beq>
     S32 screen_x = ll_round((F32)x * getScaleFactor().mV[VX]);
     S32 screen_y = ll_round((F32)y * getScaleFactor().mV[VY]);
+// #endif// <FS:Beq/> Mac HiDPI changes from Rye
+
 
     LLView::getWindow()->setCursorPosition(LLCoordGL(screen_x, screen_y).convert());
 }

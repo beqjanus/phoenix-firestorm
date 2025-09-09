@@ -1350,11 +1350,11 @@ float4 SMAABlendingWeightCalculationPS(float2 texcoord,
 
 //-----------------------------------------------------------------------------
 // Neighborhood Blending Pixel Shader (Third Pass)
-
+// <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
 vec3 srgb_to_linear(vec3 cs);
 vec4 srgb_to_linear4(vec4 cs);
 vec3 linear_to_srgb(vec3 cl);
-
+// </FS:Beq>
 float4 SMAANeighborhoodBlendingPS(float2 texcoord,
                                   float4 offset,
                                   SMAATexture2D(colorTex),
@@ -1373,7 +1373,7 @@ float4 SMAANeighborhoodBlendingPS(float2 texcoord,
     SMAA_BRANCH
     if (dot(a, float4(1.0, 1.0, 1.0, 1.0)) < 1e-5) {
         float4 color = SMAASampleLevelZero(colorTex, texcoord);
-        color.rgb = srgb_to_linear(color.rgb);
+        color.rgb = srgb_to_linear(color.rgb);// <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
 
         #if SMAA_REPROJECTION
         float2 velocity = SMAA_DECODE_VELOCITY(SMAASampleLevelZero(velocityTex, texcoord));
@@ -1382,7 +1382,7 @@ float4 SMAANeighborhoodBlendingPS(float2 texcoord,
         color.a = sqrt(5.0 * length(velocity));
         #endif
 
-        color.rgb = linear_to_srgb(color.rgb);
+        color.rgb = linear_to_srgb(color.rgb);// <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
         return color;
     } else {
         bool h = max(a.x, a.z) > max(a.y, a.w); // max(horizontal) > max(vertical)
@@ -1399,6 +1399,9 @@ float4 SMAANeighborhoodBlendingPS(float2 texcoord,
 
         // We exploit bilinear filtering to mix current pixel with the chosen
         // neighbor:
+        // <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
+        // float4 color = blendingWeight.x * SMAASampleLevelZero(colorTex, blendingCoord.xy);
+        // color += blendingWeight.y * SMAASampleLevelZero(colorTex, blendingCoord.zw);
         float4 color = SMAASampleLevelZero(colorTex, blendingCoord.xy);
         color.rgb = srgb_to_linear(color.rgb);
         color = blendingWeight.x * color;
@@ -1406,7 +1409,7 @@ float4 SMAANeighborhoodBlendingPS(float2 texcoord,
         float4 color2 = SMAASampleLevelZero(colorTex, blendingCoord.zw);
         color2.rgb = srgb_to_linear(color2.rgb);
         color += blendingWeight.y * color2;
-
+        // </FS:Beq>
         #if SMAA_REPROJECTION
         // Antialias velocity for proper reprojection in a later stage:
         float2 velocity = blendingWeight.x * SMAA_DECODE_VELOCITY(SMAASampleLevelZero(velocityTex, blendingCoord.xy));
@@ -1416,7 +1419,7 @@ float4 SMAANeighborhoodBlendingPS(float2 texcoord,
         color.a = sqrt(5.0 * length(velocity));
         #endif
 
-        color.rgb = linear_to_srgb(color.rgb);
+        color.rgb = linear_to_srgb(color.rgb); // <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
         return color;
     }
 }

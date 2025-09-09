@@ -994,7 +994,10 @@ bool LLWindowMacOSX::getPosition(LLCoordScreen *position)
     }
     else if(mWindow)
     {
-        CGPoint pos = getContentViewRect(mWindow).origin;
+        // <FS:Beq> HiDPI changes from Rye
+        // const CGSize & sz = gHiDPISupport ? getDeviceContentViewSize(mWindow, mGLView) : getContentViewBoundsSize(mWindow);
+        CGPoint pos = getContentViewRect(mWindow).origin; 
+        // </FS:Beq>
 
         position->mX = pos.x;
         position->mY = pos.y;
@@ -1021,7 +1024,10 @@ bool LLWindowMacOSX::getSize(LLCoordScreen *size)
     }
     else if(mWindow)
     {
+        // <FS:Beq> HiDPI changes from Rye
+        // const CGSize & sz = gHiDPISupport ? getDeviceContentViewSize(mWindow, mGLView) : getContentViewBoundsSize(mWindow);
         CGSize sz = getBackingViewRect(mWindow, mGLView).size;
+        // </FS:Beq>
 
         size->mX = sz.width;
         size->mY = sz.height;
@@ -1494,10 +1500,13 @@ bool LLWindowMacOSX::convertCoords(LLCoordScreen from, LLCoordWindow* to)
         mouse_point[1] = from.mY;
 
         convertScreenToWindow(mWindow, mouse_point);
-
-		float scale_factor = getSystemUISize();
-		to->mX = mouse_point[0] * scale_factor;
-		to->mY = mouse_point[1] * scale_factor;
+    // <FS:Beq> HiDPI changes from Rye
+    // to->mX = mouse_point[0];
+    // to->mY = mouse_point[1];
+    float scale_factor = getSystemUISize();
+    to->mX = mouse_point[0] * scale_factor;
+    to->mY = mouse_point[1] * scale_factor;
+    // </FS:Beq>
 
         return true;
     }
@@ -1509,9 +1518,13 @@ bool LLWindowMacOSX::convertCoords(LLCoordWindow from, LLCoordScreen *to)
     if(mWindow)
     {
         float mouse_point[2];
+        // <FS:Beq> HiDPI changes from Rye
+        // mouse_point[0] = from.mX;
+        // mouse_point[1] = from.mY;
 		float scale_factor = getSystemUISize();
 		mouse_point[0] = from.mX / scale_factor;
 		mouse_point[1] = from.mY / scale_factor;
+        // </FS:Beq>
 
         convertWindowToScreen(mWindow, mouse_point);
 
@@ -2684,7 +2697,10 @@ MASK LLWindowMacOSX::modifiersToMask(S16 modifiers)
 
 F32 LLWindowMacOSX::getSystemUISize()
 {
+    // <FS:Beq> High DPI changes from Rye
+    // return gHiDPISupport ? ::getDeviceUnitSize(mGLView) : LLWindow::getSystemUISize();
     return ::getDeviceUnitSize(mGLView);
+    // </FS:Beq>
 }
 
 #if LL_OS_DRAGDROP_ENABLED

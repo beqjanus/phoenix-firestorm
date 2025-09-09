@@ -378,7 +378,7 @@ void validate_framebuffer_object();
 bool addDeferredAttachments(LLRenderTarget& target, bool for_impostor = false)
 {
     U32 orm = GL_RGBA;
-    U32 norm = GL_RGBA16;
+    U32 norm = GL_RGBA16; // <FS:Beq/> Fix from Rye: prevent Apple M crashing due to NaN in the normal buffer
     U32 emissive = GL_RGB16F;
     // <FS:Beq> FIRE-34483 additional fix
     if (target.getNumTextures() > 1)
@@ -958,7 +958,7 @@ bool LLPipeline::allocateScreenBufferInternal(U32 resX, U32 resY)
 
     GLuint screenFormat = hdr ? GL_RGBA16F : GL_RGBA;
 
-    if (!mRT->screen.allocate(resX, resY, screenFormat)) return false;
+    if (!mRT->screen.allocate(resX, resY, screenFormat)) return false; // <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
 
     mRT->deferredScreen.shareDepthBuffer(mRT->screen);
 
@@ -1313,9 +1313,11 @@ void LLPipeline::releaseGLBuffers()
     mSceneMap.release();
 
     mWaterExclusionMask.release();
-
+    // <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
+    // mPostMap.release();
     mPostPingMap.release();
     mPostPongMap.release();
+    // </FS:Beq>
 
     mFXAAMap.release();
 
@@ -7800,14 +7802,22 @@ void LLPipeline::generateSMAABuffers(LLRenderTarget* src)
             {
                 if (!use_sample)
                 {
+                    // <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
+                    // src->bindTexture(0, channel, LLTexUnit::TFO_POINT);
+                    // gGL.getTexUnit(channel)->setTextureAddressMode(LLTexUnit::TAM_CLAMP);
+                    // </FS:Beq>
                     src->bindTexture(0, channel, LLTexUnit::TFO_BILINEAR);
                 }
                 else
                 {
                     gGL.getTexUnit(channel)->bindManual(LLTexUnit::TT_TEXTURE, mSMAASampleMap);
+                    // <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
+                    //     gGL.getTexUnit(channel)->setTextureAddressMode(LLTexUnit::TAM_CLAMP);
+                    // }
                     gGL.getTexUnit(channel)->setTextureFilteringOption(LLTexUnit::TFO_BILINEAR);
                 }
                 gGL.getTexUnit(channel)->setTextureAddressMode(LLTexUnit::TAM_CLAMP);
+                // </FS:Beq>
             }
 
             //if (use_stencil)
@@ -8434,7 +8444,7 @@ void LLPipeline::renderFinalize()
 
     static LLCachedControl<bool> has_hdr(gSavedSettings, "RenderHDREnabled", true);
     bool hdr = gGLManager.mGLVersion > 4.05f && has_hdr();
-    LLRenderTarget* postHDRBuffer = &mRT->screen;
+    LLRenderTarget* postHDRBuffer = &mRT->screen;// <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
     if (hdr)
     {
         copyScreenSpaceReflections(&mRT->screen, &mSceneMap);
@@ -8442,6 +8452,15 @@ void LLPipeline::renderFinalize()
         generateLuminance(&mRT->screen, &mLuminanceMap);
 
         generateExposure(&mLuminanceMap, &mExposureMap);
+    // <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
+    //             tonemap(&mRT->screen, &mPostMap);
+
+    //     applyCAS(&mPostMap, &mRT->screen);
+    // }
+
+    // generateSMAABuffers(&mRT->screen);
+
+    // gammaCorrect(&mRT->screen, &mPostMap);
 
         tonemap(&mRT->screen, &mRT->deferredLight);
 
@@ -8458,16 +8477,21 @@ void LLPipeline::renderFinalize()
     }
 
     gammaCorrect(postHDRBuffer, &mPostPingMap);
-
+    // </FS:Beq>
     LLVertexBuffer::unbind();
-
+    // <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
+    // applySMAA(&mPostMap, &mRT->screen);
+    // generateGlow(&mRT->screen);
     generateGlow(&mPostPingMap);
-
+    
     LLRenderTarget* sourceBuffer = &mPostPingMap;
     LLRenderTarget* targetBuffer = &mPostPongMap;
-
+    // </FS:Beq>
+    // <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
+    // combineGlow(&mRT->screen, &mPostMap);
     combineGlow(sourceBuffer, targetBuffer);
     std::swap(sourceBuffer, targetBuffer);
+    // </FS:Beq>
 
     gGLViewport[0] = gViewerWindow->getWorldViewRectRaw().mLeft;
     gGLViewport[1] = gViewerWindow->getWorldViewRectRaw().mBottom;
@@ -8475,16 +8499,23 @@ void LLPipeline::renderFinalize()
     gGLViewport[3] = gViewerWindow->getWorldViewRectRaw().getHeight();
     glViewport(gGLViewport[0], gGLViewport[1], gGLViewport[2], gGLViewport[3]);
 
+    // <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
+    // renderDoF(&mPostMap, &mRT->screen);
+    // LLRenderTarget* finalBuffer = &mRT->screen;
     if((RenderDepthOfFieldInEditMode || !LLToolMgr::getInstance()->inBuildMode()) &&
-        RenderDepthOfField &&
-        !gCubeSnapshot)
+    RenderDepthOfField &&
+    !gCubeSnapshot)
     {
         renderDoF(sourceBuffer, targetBuffer);
         std::swap(sourceBuffer, targetBuffer);
     }
-
-     if (RenderFSAAType == 1)
+    // </FS:Beq>
+    
+    if (RenderFSAAType == 1)
     {
+        // <FS:Beq> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
+        // applyFXAA(&mRT->screen, &mPostMap);
+        // finalBuffer = &mPostMap;
         applyFXAA(sourceBuffer, targetBuffer);
         std::swap(sourceBuffer, targetBuffer);
     }
@@ -8493,6 +8524,7 @@ void LLPipeline::renderFinalize()
         generateSMAABuffers(sourceBuffer);
         applySMAA(sourceBuffer, targetBuffer);
         std::swap(sourceBuffer, targetBuffer);
+        // </FS:Beq>
     }
 
     // <FS:Beq> Restore shader post proc for Vignette
@@ -8525,16 +8557,16 @@ void LLPipeline::renderFinalize()
         case 1:
         case 2:
         case 3:
-            visualizeBuffers(&mRT->deferredScreen, sourceBuffer, RenderBufferVisualization);
+            visualizeBuffers(&mRT->deferredScreen, sourceBuffer, RenderBufferVisualization); // <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
             break;
         case 4:
-            visualizeBuffers(&mLuminanceMap, sourceBuffer, 0);
+            visualizeBuffers(&mLuminanceMap, sourceBuffer, 0); // <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
             break;
         case 5:
         {
             if (RenderFSAAType > 0)
             {
-                visualizeBuffers(&mFXAAMap, sourceBuffer, 0);
+                visualizeBuffers(&mFXAAMap, sourceBuffer, 0); // <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
             }
             break;
         }
@@ -8542,7 +8574,7 @@ void LLPipeline::renderFinalize()
         {
             if (RenderFSAAType == 2)
             {
-                visualizeBuffers(&mSMAABlendBuffer, sourceBuffer, 0);
+                visualizeBuffers(&mSMAABlendBuffer, sourceBuffer, 0); // <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
             }
             break;
         }
@@ -8556,10 +8588,10 @@ void LLPipeline::renderFinalize()
     gDeferredPostNoDoFNoiseProgram.bind(); // Add noise as part of final render to screen pass to avoid damaging other post effects
 
     // Whatever is last in the above post processing chain should _always_ be rendered directly here.  If not, expect problems.
-    gDeferredPostNoDoFNoiseProgram.bindTexture(LLShaderMgr::DEFERRED_DIFFUSE, sourceBuffer);
+    gDeferredPostNoDoFNoiseProgram.bindTexture(LLShaderMgr::DEFERRED_DIFFUSE, sourceBuffer); // <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
     gDeferredPostNoDoFNoiseProgram.bindTexture(LLShaderMgr::DEFERRED_DEPTH, &mRT->deferredScreen, true);
 
-    gDeferredPostNoDoFNoiseProgram.uniform2f(LLShaderMgr::DEFERRED_SCREEN_RES, (GLfloat)sourceBuffer->getWidth(), (GLfloat)sourceBuffer->getHeight());
+    gDeferredPostNoDoFNoiseProgram.uniform2f(LLShaderMgr::DEFERRED_SCREEN_RES, (GLfloat)sourceBuffer->getWidth(), (GLfloat)sourceBuffer->getHeight()); // <FS:Beq/> FIRE-35227 (via Rye) Fix large performance drop when enabling AA on Apple Silicon
 
     {
         LLGLDepthTest depth_test(GL_TRUE, GL_TRUE, GL_ALWAYS);

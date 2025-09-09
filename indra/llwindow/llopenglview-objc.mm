@@ -196,7 +196,8 @@ attributedStringInfo getSegments(NSAttributedString *str)
 {
     if (!mOldResize)  //Maint-3288
     {
-        NSSize dev_sz = [self convertSizeToBacking:[self frame].size];
+        NSSize dev_sz = [self convertSizeToBacking:[self frame].size]; // <FS:Beq> Mac HiDPI changes from Rye
+
         callResize(dev_sz.width, dev_sz.height);
     }
 }
@@ -247,7 +248,7 @@ attributedStringInfo getSegments(NSAttributedString *str)
 	// <FS> Fix some bad refcount code and squash some potential leakiness; by Cinder Roxley
 	self = [super initWithFrame:frame];
 	if (!self) { return self; }	// Despite what this may look like, returning nil self is a-ok.
-	// <F/S>
+	// <FS/>
 	[self registerForDraggedTypes:[NSArray arrayWithObject:NSURLPboardType]];
 	//[self initWithFrame:frame]; <FS> Fix some bad refcount code and squash some potential leakiness; by Cinder Roxley
 	
@@ -360,6 +361,11 @@ attributedStringInfo getSegments(NSAttributedString *str)
 
 - (void) mouseDown:(NSEvent *)theEvent
 {
+    // <FS:Beq> Mac HiDPI changes from Rye
+    // NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
+    // mMousePos[0] = mPoint.x;
+    // mMousePos[1] = mPoint.y;
+    // </FS:Beq>
     // Apparently people still use this?
     if ([theEvent modifierFlags] & NSCommandKeyMask &&
         !([theEvent modifierFlags] & NSControlKeyMask) &&
@@ -388,26 +394,42 @@ attributedStringInfo getSegments(NSAttributedString *str)
         callRightMouseUp(mMousePos, [theEvent modifierFlags]);
         mSimulatedRightClick = false;
     } else {
+        // <FS:Beq> Mac HiDPI changes from Rye
+        // NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
         NSPoint mPoint = [self convertPointToBacking:[theEvent locationInWindow]];
         mMousePos[0] = mPoint.x;
         mMousePos[1] = mPoint.y;
+        // </FS:Beq>
         callLeftMouseUp(mMousePos, [theEvent modifierFlags]);
     }
 }
 
 - (void) rightMouseDown:(NSEvent *)theEvent
 {
+	// <FS:Beq> Mac HiDPI changes from Rye
+	// NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
+	// mMousePos[0] = mPoint.x;
+	// mMousePos[1] = mPoint.y;
+	// </FS:Beq>
 	callRightMouseDown(mMousePos, [theEvent modifierFlags]);
 }
 
 - (void) rightMouseUp:(NSEvent *)theEvent
 {
+	// <FS:Beq> Mac HiDPI changes from Rye
+	// NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
+	// mMousePos[0] = mPoint.x;
+	// mMousePos[1] = mPoint.y;
+	// </FS:Beq>
 	callRightMouseUp(mMousePos, [theEvent modifierFlags]);
 }
 
 - (void)mouseMoved:(NSEvent *)theEvent
 {
+    // <FS:Beq> Mac HiDPI changes from Rye
+    // NSPoint dev_delta = gHiDPISupport ? [self convertPointToBacking:NSMakePoint([theEvent deltaX], [theEvent deltaY])] : NSMakePoint([theEvent deltaX], [theEvent deltaY]);
     NSPoint dev_delta = [self convertPointToBacking:NSMakePoint([theEvent deltaX], [theEvent deltaY])];
+    // </FS:Beq>
 
 	float mouseDeltas[] = {
 		float(dev_delta.x),
@@ -416,7 +438,10 @@ attributedStringInfo getSegments(NSAttributedString *str)
 
 	callDeltaUpdate(mouseDeltas, 0);
 
+	// <FS:Beq> Mac HiDPI changes from Rye
+	// NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
     NSPoint mPoint = [self convertPointToBacking:[theEvent locationInWindow]];
+	// </FS:Beq>
 	mMousePos[0] = mPoint.x;
 	mMousePos[1] = mPoint.y;
 	callMouseMoved(mMousePos, 0);
@@ -431,7 +456,10 @@ attributedStringInfo getSegments(NSAttributedString *str)
 	// The old CoreGraphics APIs we previously relied on are now flagged as obsolete.
 	// NSEvent isn't obsolete, and provides us with the correct deltas.
 
+    // <FS:Beq> Mac HiDPI changes from Rye
+    // NSPoint dev_delta = gHiDPISupport ? [self convertPointToBacking:NSMakePoint([theEvent deltaX], [theEvent deltaY])] : NSMakePoint([theEvent deltaX], [theEvent deltaY]);
     NSPoint dev_delta = [self convertPointToBacking:NSMakePoint([theEvent deltaX], [theEvent deltaY])];
+    // </FS:Beq>
 
 	float mouseDeltas[] = {
 		float(dev_delta.x),
@@ -439,8 +467,10 @@ attributedStringInfo getSegments(NSAttributedString *str)
 	};
 	
 	callDeltaUpdate(mouseDeltas, 0);
-	
+    // <FS:Beq> Mac HiDPI changes from Rye
+    // NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
 	NSPoint mPoint = [self convertPointToBacking:[theEvent locationInWindow]];
+    // </FS:Beq>
 	mMousePos[0] = mPoint.x;
 	mMousePos[1] = mPoint.y;
 	callMouseDragged(mMousePos, 0);
@@ -448,11 +478,21 @@ attributedStringInfo getSegments(NSAttributedString *str)
 
 - (void) otherMouseDown:(NSEvent *)theEvent
 {
+    // <FS:Beq> Mac HiDPI changes from Rye
+    // NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
+    // mMousePos[0] = mPoint.x;
+    // mMousePos[1] = mPoint.y;
+    // </FS:Beq>
     callOtherMouseDown(mMousePos, [theEvent modifierFlags], [theEvent buttonNumber]);
 }
 
 - (void) otherMouseUp:(NSEvent *)theEvent
 {
+    // <FS:Beq> Mac HiDPI changes from Rye
+    // NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
+    // mMousePos[0] = mPoint.x;
+    // mMousePos[1] = mPoint.y;
+    // </FS:Beq>    
     callOtherMouseUp(mMousePos, [theEvent modifierFlags], [theEvent buttonNumber]);
 }
 
