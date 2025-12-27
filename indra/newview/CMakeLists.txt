@@ -196,6 +196,8 @@ set(viewer_SOURCE_FILES
     vjlocalmesh.cpp
     vjfloaterlocalmesh.cpp
     vjlocalmeshimportdae.cpp
+    vjlocalmeshimportgltf.cpp
+    gltfexport.cpp
 
     gltfscenemanager.cpp
     # <FS:Ansariel> Group GLTF files into their subfolders
@@ -1037,6 +1039,8 @@ set(viewer_HEADER_FILES
     vjlocalmesh.h
     vjfloaterlocalmesh.h
     vjlocalmeshimportdae.h
+    vjlocalmeshimportgltf.h
+    gltfexport.h
 
     gltfscenemanager.h
     groupchatlistener.h

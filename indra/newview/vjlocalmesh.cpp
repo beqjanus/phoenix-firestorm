@@ -49,6 +49,7 @@
 
 // local mesh importers
 #include "vjlocalmeshimportdae.h"
+#include "vjlocalmeshimportgltf.h"
 
 
 /*==========================================*/
@@ -472,6 +473,11 @@ LLLocalMeshFile::LLLocalMeshFile(const std::string& filename, bool try_lods)
         mExtension = LLLocalMeshFileExtension::EXTEN_DAE;
         pushLog("LLLocalMeshFile", "Extension found: COLLADA");
     }
+    else if (std::string exten_str = path.extension().string(); boost::iequals(exten_str, ".gltf") || boost::iequals(exten_str, ".glb"))
+    {
+        mExtension = LLLocalMeshFileExtension::EXTEN_GLTF;
+        pushLog("LLLocalMeshFile", "Extension found: GLTF");
+    }
     // add more ifs for different types, in lieu of a better approach?
 
     // if no extensions found, stop.
@@ -619,6 +625,23 @@ void LLLocalMeshFile::reloadLocalMeshObjects(bool initial_load)
                     lod_success[lod_idx] = importer_result.first;
 
                     // NOTE: if not success - do not indicate change as not to affect existing vobjects?
+                    if (lod_success[lod_idx])
+                    {
+                        change_happened = true;
+                    }
+
+                    const auto& importer_log = importer_result.second;
+                    log.reserve(log.size() + importer_log.size());
+                    log.insert(log.end(), importer_log.begin(), importer_log.end());
+                    break;
+                }
+
+                case LLLocalMeshFileExtension::EXTEN_GLTF:
+                {
+                    LLLocalMeshImportGLTF importer;
+                    auto importer_result = importer.loadFile(this, current_lod);
+                    lod_success[lod_idx] = importer_result.first;
+
                     if (lod_success[lod_idx])
                     {
                         change_happened = true;

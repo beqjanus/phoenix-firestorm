@@ -29,6 +29,7 @@
 #include "lltextureentry.h"
 #include "lltexturecache.h"
 #include <dom/domElements.h>
+#include "gltfexport.h"
 
 class LLViewerObject;
 class LLObjectSelection;
@@ -142,6 +143,7 @@ private:
     S32 getNumExportableTextures();
 
     DAESaver mSaver;
+    GLTFExporter mGLTFSaver;
     S32 mTotal;
     S32 mIncluded;
     S32 mNumTextures;

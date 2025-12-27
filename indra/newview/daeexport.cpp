@@ -197,20 +197,51 @@ void ColladaExportFloater::updateUI()
 void ColladaExportFloater::onClickExport()
 {
     LLFilePickerReplyThread::startPicker(boost::bind(&ColladaExportFloater::onExportFileSelected, this, _1),
-        LLFilePicker::FFSAVE_COLLADA, LLDir::getScrubbedFileName(mObjectName + ".dae"));
+        LLFilePicker::FFSAVE_COLLADA | LLFilePicker::FFSAVE_GLTF, LLDir::getScrubbedFileName(mObjectName + ".dae"));
 }
 
 void ColladaExportFloater::onExportFileSelected(const std::vector<std::string>& filenames)
 {
     mFilename = filenames[0];
 
-    if (gSavedSettings.getBOOL("DAEExportTextures"))
+    // Check extension
+    std::string ext = gDirUtilp->getExtension(mFilename);
+    LLStringUtil::toLower(ext);
+
+    if (ext == "gltf" || ext == "glb")
     {
-        saveTextures();
+        // GLTF export
+        // For GLTF we skip texture saving logic of DAE for now (unless GLTFExporter handles it)
+        // GLTFExporter handles internal logic.
+
+        mGLTFSaver.setObjects(mSaver.mObjects); // Reuse object list populated in addSelectedObjects
+        bool success = mGLTFSaver.save(mFilename);
+
+        LLSD args;
+        args["OBJECT"] = mObjectName;
+        args["FILENAME"] = mFilename;
+        if (success)
+        {
+            LL_INFOS() << "GLTF export successful" << LL_ENDL;
+            LLNotificationsUtil::add("ExportColladaSuccess", args); // Reuse success message
+        }
+        else
+        {
+            LL_WARNS() << "GLTF export failed" << LL_ENDL;
+            LLNotificationsUtil::add("ExportColladaFailure", args); // Reuse failure message
+        }
+        closeFloater();
     }
     else
     {
-        onTexturesSaved();
+        if (gSavedSettings.getBOOL("DAEExportTextures"))
+        {
+            saveTextures();
+        }
+        else
+        {
+            onTexturesSaved();
+        }
     }
 }
 
